@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1a3a2a">
+<title>MicroVic – Rutas Ciudad Victoria</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Barlow:wght@300;400;500;600;700;900&family=Barlow+Condensed:wght@500;700;900&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root {
+    --green-dark: #0d2e1a;
+    --green-mid: #1a4a28;
+    --green-accent: #2e7d46;
+    --green-light: #4caf70;
+    --yellow: #f5c842;
+    --yellow-dark: #c9a020;
+    --white: #f0ede6;
+    --gray-light: #d6d2c8;
+    --gray-mid: #8a8880;
+    --text: #1a1a18;
+    --card-bg: #faf8f3;
+    --border: #ddd9d0;
+    --red: #c0392b;
+    --blue: #2471a3;
+    --sidebar-w: 380px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Barlow', sans-serif; background: var(--green-dark); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+  header { background: var(--green-dark); border-bottom: 2px solid var(--yellow); padding: 0 20px; height: 56px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; z-index: 1000; }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 36px; height: 36px; background: var(--yellow); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+  .logo-icon svg { width: 22px; height: 22px; }
+  .logo-text { font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 900; color: var(--white); letter-spacing: -0.5px; }
+  .logo-text span { color: var(--yellow); }
+  .header-nav { display: flex; gap: 4px; }
+  .nav-btn { background: transparent; border: 1px solid transparent; color: var(--gray-light); padding: 6px 14px; border-radius: 6px; font-family: 'Barlow', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+  .nav-btn:hover, .nav-btn.active { background: rgba(245,200,66,0.12); border-color: var(--yellow); color: var(--yellow); }
+  .app-body { display: flex; flex: 1; overflow: hidden; }
+  .sidebar { width: var(--sidebar-w); background: var(--card-bg); display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; border-right: 1px solid var(--border); }
+  .sidebar-section { display: none; flex-direction: column; height: 100%; overflow-y: auto; }
+  .sidebar-section.active { display: flex; }
+  .section-header { padding: 16px 20px 12px; border-bottom: 1px solid var(--border); background: var(--white); flex-shrink: 0; }
+  .section-title { font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 700; color: var(--green-mid); text-transform: uppercase; letter-spacing: 0.5px; }
+  .section-subtitle { font-size: 12px; color: var(--gray-mid); margin-top: 2px; }
+  .section-body { padding: 16px 20px; flex: 1; }
+  .input-group { margin-bottom: 14px; }
+  .input-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--gray-mid); margin-bottom: 5px; }
+  .input-row { display: flex; gap: 8px; align-items: center; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .dot-origin { background: var(--green-accent); }
+  .dot-dest { background: var(--red); }
+  .styled-input { flex: 1; border: 1.5px solid var(--border); border-radius: 8px; padding: 9px 12px; font-family: 'Barlow', sans-serif; font-size: 14px; background: white; color: var(--text); transition: border-color 0.15s; }
+  .styled-input:focus { outline: none; border-color: var(--green-accent); }
+  .btn-primary { width: 100%; background: var(--green-accent); color: white; border: none; border-radius: 8px; padding: 11px; font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; transition: background 0.15s; margin-top: 4px; }
+  .btn-primary:hover { background: var(--green-mid); }
+  .btn-primary:disabled { background: var(--gray-mid); cursor: not-allowed; }
+  .btn-loc { background: var(--green-dark); color: var(--yellow); border: none; border-radius: 7px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: background 0.15s; }
+  .btn-loc:hover { background: var(--green-mid); }
+  .divider-dots { display: flex; flex-direction: column; gap: 3px; align-items: center; padding: 4px 0; margin-left: 5px; }
+  .divider-dots span { width: 3px; height: 3px; border-radius: 50%; background: var(--gray-mid); }
+  .route-result { background: white; border: 1.5px solid var(--border); border-radius: 10px; padding: 14px; margin-top: 16px; }
+  .route-result-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .route-badge { background: var(--green-dark); color: var(--yellow); font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 900; padding: 4px 12px; border-radius: 6px; }
+  .route-name { font-weight: 600; font-size: 15px; color: var(--text); }
+  .route-detail { font-size: 13px; color: var(--gray-mid); margin-top: 2px; }
+  .walk-info { display: flex; align-items: center; gap: 8px; background: #f0f7f2; border: 1px solid #b8dfc4; border-radius: 7px; padding: 8px 12px; font-size: 13px; color: var(--green-mid); margin-top: 8px; font-weight: 500; }
+  .route-item { display: flex; align-items: center; gap: 12px; cursor: pointer; transition: background 0.1s; border-radius: 8px; padding: 10px 12px; margin-bottom: 4px; border: 1.5px solid transparent; }
+  .route-item:hover { background: #edf5ef; }
+  .route-item.selected { background: #dff0e5; border-color: var(--green-accent); }
+  .route-num { color: var(--yellow); font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 900; min-width: 50px; height: 40px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .route-info { flex: 1; }
+  .route-info-name { font-weight: 600; font-size: 14px; color: var(--text); }
+  .route-info-desc { font-size: 12px; color: var(--gray-mid); margin-top: 2px; }
+  .tarifa-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 8px; }
+  .tarifa-table th { background: var(--green-dark); color: var(--yellow); font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 9px 12px; text-align: left; }
+  .tarifa-table th:first-child { border-radius: 6px 0 0 0; }
+  .tarifa-table th:last-child { border-radius: 0 6px 0 0; text-align: right; }
+  .tarifa-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+  .tarifa-table td:last-child { text-align: right; font-weight: 600; color: var(--green-mid); }
+  .tarifa-table tr:hover td { background: #f0f7f2; }
+  .tarifa-note { font-size: 11px; color: var(--gray-mid); margin-top: 10px; line-height: 1.5; padding: 10px; background: #f5f3ee; border-radius: 7px; }
+  .tarifa-update { font-size: 11px; font-weight: 600; color: var(--green-accent); margin-top: 6px; }
+  .report-form { display: flex; flex-direction: column; gap: 12px; }
+  .styled-select { border: 1.5px solid var(--border); border-radius: 8px; padding: 9px 12px; font-family: 'Barlow', sans-serif; font-size: 14px; background: white; color: var(--text); cursor: pointer; width: 100%; }
+  .styled-select:focus { outline: none; border-color: var(--green-accent); }
+  .styled-textarea { border: 1.5px solid var(--border); border-radius: 8px; padding: 9px 12px; font-family: 'Barlow', sans-serif; font-size: 14px; background: white; color: var(--text); resize: vertical; min-height: 80px; width: 100%; }
+  .styled-textarea:focus { outline: none; border-color: var(--green-accent); }
+  .anon-badge { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--gray-mid); background: #f5f3ee; border-radius: 6px; padding: 7px 10px; }
+  .report-item { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; }
+  .report-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .report-type-badge { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 3px 8px; border-radius: 4px; background: #fff3cd; color: #856404; }
+  .report-type-badge.cierre { background: #f8d7da; color: #842029; }
+  .report-type-badge.desvio { background: #cfe2ff; color: #084298; }
+  .report-type-badge.otro, .report-type-badge.accidente, .report-type-badge.manifestacion, .report-type-badge.inundacion { background: #e2e3e5; color: #41464b; }
+  .report-time { font-size: 11px; color: var(--gray-mid); }
+  .report-desc { font-size: 13px; color: var(--text); }
+  .report-route { font-size: 12px; color: var(--green-accent); font-weight: 600; margin-top: 3px; }
+  .success-msg { background: #d1e7dd; color: #0a3622; border: 1px solid #a3cfbb; border-radius: 8px; padding: 10px 14px; font-size: 13px; font-weight: 500; display: none; margin-bottom: 12px; }
+  .error-msg { background: #f8d7da; color: #842029; border: 1px solid #f5c2c7; border-radius: 8px; padding: 10px 14px; font-size: 13px; font-weight: 500; display: none; margin-bottom: 12px; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-placeholder { text-align: center; color: var(--gray-mid); font-size: 13px; padding: 24px 0; }
+  #map { flex: 1; height: 100%; background: #1a3a2a; }
+  .offline-banner { background: var(--yellow-dark); color: var(--text); text-align: center; font-size: 12px; font-weight: 600; padding: 5px; display: none; flex-shrink: 0; }
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--gray-light); border-radius: 4px; }
+  .map-legend { position: absolute; bottom: 24px; right: 16px; background: white; border-radius: 8px; padding: 10px 14px; font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 500; pointer-events: none; }
+  .legend-title { font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gray-mid); margin-bottom: 6px; }
+  .legend-item { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; color: var(--text); }
+  .legend-line { width: 24px; height: 4px; border-radius: 2px; }
+  .offline-cached-badge { font-size: 10px; background: #e8f5e9; color: #1b5e20; border: 1px solid #a5d6a7; padding: 2px 7px; border-radius: 10px; font-weight: 600; margin-left: 6px; }
+  .api-status { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; }
+  .api-status.ok { background: #e8f5e9; color: #1b5e20; }
+  .api-status.error { background: #f8d7da; color: #842029; }
+</style>
+</head>
+<body>
+
+<div class="offline-banner" id="offlineBanner">Sin conexión – mostrando rutas en caché</div>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="6" width="20" height="12" rx="3" fill="#1a3a2a"/>
+        <rect x="4" y="8" width="16" height="7" rx="1.5" fill="#2e7d46"/>
+        <circle cx="6.5" cy="17" r="1.5" fill="#1a3a2a"/>
+        <circle cx="17.5" cy="17" r="1.5" fill="#1a3a2a"/>
+        <rect x="7" y="4" width="10" height="3" rx="1" fill="#1a3a2a"/>
+      </svg>
+    </div>
+    <div class="logo-text">Micro<span>Vic</span></div>
+  </div>
+  <nav class="header-nav">
+    <button class="nav-btn active" onclick="showSection('planner', this)">Planificar</button>
+    <button class="nav-btn" onclick="showSection('rutas', this)">Rutas</button>
+    <button class="nav-btn" onclick="showSection('tarifas', this)">Tarifas</button>
+    <button class="nav-btn" onclick="showSection('reportes', this)">Reportes</button>
+  </nav>
+</header>
+
+<div class="app-body">
+  <div class="sidebar">
+
+    <!-- ══ PLANIFICAR ══ -->
+    <div class="sidebar-section active" id="sec-planner">
+      <div class="section-header">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div class="section-title">Planificar viaje</div>
+            <div class="section-subtitle">¿A dónde vas hoy?</div>
+          </div>
+          <span class="api-status" id="apiStatus">...</span>
+        </div>
+      </div>
+      <div class="section-body">
+        <div class="input-group">
+          <div class="input-label">Origen</div>
+          <div class="input-row">
+            <div class="dot dot-origin"></div>
+            <input class="styled-input" id="inputOrigen" type="text" placeholder="Ej. Centro, UAT, Hospital IMSS…" list="sugerencias">
+            <button class="btn-loc" onclick="usarUbicacion()" title="Usar mi ubicación">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="divider-dots"><span></span><span></span><span></span></div>
+        <div class="input-group">
+          <div class="input-label">Destino</div>
+          <div class="input-row">
+            <div class="dot dot-dest"></div>
+            <input class="styled-input" id="inputDestino" type="text" placeholder="Ej. Central Camiones, UAT, Plaza…" list="sugerencias">
+          </div>
+        </div>
+
+        <datalist id="sugerencias">
+          <option value="Centro Histórico">
+          <option value="UAT Campus Victoria">
+          <option value="Hospital del IMSS">
+          <option value="Hospital General">
+          <option value="Central Camiones">
+          <option value="Plaza Victoria">
+          <option value="Soriana Reforma">
+          <option value="Parque Bicentenario">
+          <option value="CBTIS 118">
+          <option value="Mercado Hidalgo">
+        </datalist>
+
+        <button class="btn-primary" id="btnBuscar" onclick="buscarRuta()">Buscar ruta →</button>
+
+        <div class="route-result" id="routeResult" style="display:none">
+          <div class="route-result-header">
+            <div class="route-badge" id="resRouteBadge">–</div>
+            <div>
+              <div class="route-name" id="resRouteName">–</div>
+              <div class="route-detail" id="resRouteDetail">–</div>
+            </div>
+          </div>
+          <div class="walk-info">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 4a1 1 0 1 0 2 0 1 1 0 0 0-2 0"/><path d="M7.5 17.5 10 12l2.5 2.5 2-5"/><path d="M16.5 19 14 14"/></svg>
+            <span id="resWalkTime">Calculando…</span>
+          </div>
+          <button class="btn-primary" style="margin-top:10px;background:var(--green-dark);font-size:13px;padding:8px" onclick="verRutaEnMapa()">Ver trazado en mapa →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ RUTAS ══ -->
+    <div class="sidebar-section" id="sec-rutas">
+      <div class="section-header">
+        <div class="section-title">Rutas activas</div>
+        <div class="section-subtitle">Ciudad Victoria, Tamaulipas</div>
+      </div>
+      <div class="section-body" style="padding-top:8px">
+        <div id="routeList"><div class="loading-placeholder">Cargando rutas…</div></div>
+      </div>
+    </div>
+
+    <!-- ══ TARIFAS ══ -->
+    <div class="sidebar-section" id="sec-tarifas">
+      <div class="section-header">
+        <div class="section-title">Tarifas vigentes</div>
+        <div class="section-subtitle">Transporte público urbano</div>
+      </div>
+      <div class="section-body">
+        <table class="tarifa-table">
+          <thead><tr><th>Tipo de usuario</th><th>Tarifa</th></tr></thead>
+          <tbody>
+            <tr><td>Público en general</td><td>$10.00 MXN</td></tr>
+            <tr><td>Estudiantes (con credencial)</td><td>$6.00 MXN</td></tr>
+            <tr><td>Adultos mayores (+60 años)</td><td>$5.00 MXN</td></tr>
+            <tr><td>Personas con discapacidad</td><td>$5.00 MXN</td></tr>
+            <tr><td>Niños menores de 5 años</td><td>Gratis</td></tr>
+          </tbody>
+        </table>
+        <div class="tarifa-note">Los estudiantes deben presentar credencial vigente al abordar. Tarifa preferencial aplica de lunes a viernes en horario escolar.</div>
+        <div class="tarifa-update">Última actualización: Enero 2025 · Fuente: Dirección de Transporte Municipal</div>
+        <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
+          <div class="section-title" style="font-size:14px;margin-bottom:10px">Horarios generales</div>
+          <table class="tarifa-table">
+            <thead><tr><th>Servicio</th><th>Horario</th></tr></thead>
+            <tbody>
+              <tr><td>Rutas urbanas</td><td>5:30 – 22:00</td></tr>
+              <tr><td>Ruta Nocturna</td><td>21:00 – 1:00</td></tr>
+              <tr><td>Sábados</td><td>6:00 – 21:00</td></tr>
+              <tr><td>Domingos y festivos</td><td>7:00 – 20:00</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ REPORTES ══ -->
+    <div class="sidebar-section" id="sec-reportes">
+      <div class="section-header">
+        <div class="section-title">Reportes ciudadanos</div>
+        <div class="section-subtitle">Incidentes en tiempo real</div>
+      </div>
+      <div class="section-body">
+        <div class="success-msg" id="successMsg">✓ Reporte enviado de forma anónima. ¡Gracias!</div>
+        <div class="error-msg" id="errorMsg">✗ No se pudo enviar el reporte. Verifica tu conexión.</div>
+        <div class="report-form">
+          <div>
+            <div class="input-label" style="margin-bottom:5px">Tipo de incidente</div>
+            <select class="styled-select" id="repTipo">
+              <option value="">Selecciona un tipo…</option>
+              <option value="cierre">Calle cerrada por bacheo</option>
+              <option value="desvio">Desvío temporal de ruta</option>
+              <option value="accidente">Accidente vial</option>
+              <option value="manifestacion">Manifestación / bloqueo</option>
+              <option value="inundacion">Inundación / encharcamiento</option>
+              <option value="otro">Otro incidente</option>
+            </select>
+          </div>
+          <div>
+            <div class="input-label" style="margin-bottom:5px">Ruta afectada</div>
+            <select class="styled-select" id="repRuta">
+              <option value="">Todas las rutas</option>
+            </select>
+          </div>
+          <div>
+            <div class="input-label" style="margin-bottom:5px">Descripción</div>
+            <textarea class="styled-textarea" id="repDesc" placeholder="Describe el incidente (calle, colonia, referencia…)"></textarea>
+          </div>
+          <div class="anon-badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Tu reporte es completamente anónimo
+          </div>
+          <button class="btn-primary" id="btnReporte" onclick="enviarReporte()">Enviar reporte</button>
+        </div>
+        <div class="report-list" id="reportList" style="margin-top:16px">
+          <div class="loading-placeholder">Cargando reportes…</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══ MAPA ══ -->
+  <div style="flex:1;position:relative;overflow:hidden">
+    <div id="map"></div>
+    <div class="map-legend">
+      <div class="legend-title">Leyenda</div>
+      <div class="legend-item"><div class="legend-line" style="background:#2e7d46"></div> Ruta (ida)</div>
+      <div class="legend-item"><div class="legend-line" style="background:#1565c0;opacity:0.8"></div> Ruta (vuelta)</div>
+      <div class="legend-item"><div style="width:12px;height:12px;border-radius:50%;background:#f5c842;border:2px solid #333"></div> POI</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ════════════════════════════════════════════════════════════
+//  CONFIGURACIÓN – cambia la URL base si mueves la carpeta api/
+// ════════════════════════════════════════════════════════════
+const API_BASE = 'http://localhost/microvic/api';
+
+// ════════════════════════════════════════════════════════════
+//  ESTADO GLOBAL
+// ════════════════════════════════════════════════════════════
+let map, layerRoutes, layerPOIs, layerUser;
+let RUTAS        = [];   // cargado desde API
+let selectedRoute = null;
+
+// ════════════════════════════════════════════════════════════
+//  API HELPERS
+// ════════════════════════════════════════════════════════════
+async function apiFetch(endpoint) {
+  const res = await fetch(API_BASE + endpoint);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.mensaje || 'Error en la API');
+  return json.data;
+}
+
+async function apiPost(endpoint, body) {
+  const res = await fetch(API_BASE + endpoint, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(body)
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.mensaje || 'Error en la API');
+  return json.data;
+}
+
+// ════════════════════════════════════════════════════════════
+//  INICIALIZACIÓN
+// ════════════════════════════════════════════════════════════
+async function init() {
+  initMap();
+  await Promise.all([cargarRutas(), cargarPOIs()]);
+  verificarConexionAPI();
+}
+
+function initMap() {
+  map = L.map('map', { center: [23.7369, -99.1467], zoom: 13 });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap', maxZoom: 18
+  }).addTo(map);
+  layerRoutes = L.layerGroup().addTo(map);
+  layerPOIs   = L.layerGroup().addTo(map);
+  layerUser   = L.layerGroup().addTo(map);
+}
+
+async function verificarConexionAPI() {
+  const el = document.getElementById('apiStatus');
+  try {
+    await apiFetch('/rutas.php');
+    el.textContent = '● API conectada';
+    el.className   = 'api-status ok';
+  } catch {
+    el.textContent = '● Sin API';
+    el.className   = 'api-status error';
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  CARGA DE DATOS DESDE LA API
+// ════════════════════════════════════════════════════════════
+async function cargarRutas() {
+  try {
+    RUTAS = await apiFetch('/rutas.php');
+    // Poblar select de rutas en reportes
+    const sel = document.getElementById('repRuta');
+    RUTAS.forEach(r => {
+      const opt = document.createElement('option');
+      opt.value       = r.id;
+      opt.textContent = r.nombre;
+      sel.appendChild(opt);
+    });
+    // Dibujar trazados ligeros en el mapa
+    // (solo cargamos coordenadas completas al seleccionar una ruta)
+    dibujarAllRoutesLight();
+  } catch (e) {
+    console.error('Error cargando rutas:', e);
+    // Fallback: intentar desde localStorage
+    const cached = localStorage.getItem('cache_rutas');
+    if (cached) RUTAS = JSON.parse(cached);
+  }
+}
+
+async function cargarPOIs() {
+  try {
+    const pois = await apiFetch('/pois.php');
+    // Guardar en caché
+    localStorage.setItem('cache_pois', JSON.stringify(pois));
+    dibujarPOIs(pois);
+  } catch {
+    const cached = localStorage.getItem('cache_pois');
+    if (cached) dibujarPOIs(JSON.parse(cached));
+  }
+}
+
+async function cargarDetalleRuta(id) {
+  // Intentar desde caché primero si estamos offline
+  const cacheKey = 'cache_ruta_detail_' + id;
+  try {
+    const ruta = await apiFetch('/rutas.php?id=' + id);
+    localStorage.setItem(cacheKey, JSON.stringify(ruta));
+    return ruta;
+  } catch {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) return JSON.parse(cached);
+    throw new Error('No hay datos disponibles offline para esta ruta.');
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  DIBUJO EN MAPA
+// ════════════════════════════════════════════════════════════
+function dibujarAllRoutesLight() {
+  // Solo líneas punteadas tenues – sin coordenadas reales aún
+  // (se cargan al hacer clic en una ruta)
+}
+
+function dibujarRuta(ruta) {
+  layerRoutes.clearLayers();
+
+  L.polyline(ruta.coords_ida, { color: ruta.color_hex, weight: 5, opacity: 0.85 })
+    .addTo(layerRoutes);
+  L.polyline(ruta.coords_vuelta, { color: '#1565c0', weight: 4, opacity: 0.7, dashArray: '8,4' })
+    .addTo(layerRoutes);
+
+  const start = ruta.coords_ida[0];
+  const end   = ruta.coords_ida[ruta.coords_ida.length - 1];
+
+  L.circleMarker(start, { radius: 9, color: ruta.color_hex, fillColor: ruta.color_hex, fillOpacity: 1, weight: 2 })
+    .addTo(layerRoutes).bindTooltip('Inicio');
+  L.circleMarker(end, { radius: 9, color: '#333', fillColor: '#f5c842', fillOpacity: 1, weight: 2 })
+    .addTo(layerRoutes).bindTooltip('Terminal');
+
+  const allCoords = [...ruta.coords_ida, ...ruta.coords_vuelta];
+  map.fitBounds(L.latLngBounds(allCoords), { padding: [30, 30] });
+}
+
+function dibujarPOIs(pois) {
+  layerPOIs.clearLayers();
+  pois.forEach(p => {
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="background:white;border:2px solid #555;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 6px rgba(0,0,0,0.2)">${p.tipo}</div>`,
+      iconSize: [28, 28], iconAnchor: [14, 14]
+    });
+    L.marker([p.lat, p.lng], { icon })
+      .addTo(layerPOIs)
+      .bindPopup(`<strong>${p.nombre}</strong><br><span style="color:#666">${p.descripcion}</span>`);
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+//  NAVEGACIÓN
+// ════════════════════════════════════════════════════════════
+function showSection(sec, btn) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.sidebar-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('sec-' + sec).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (sec === 'rutas')    renderRouteList();
+  if (sec === 'reportes') cargarReportes();
+}
+
+// ════════════════════════════════════════════════════════════
+//  PLANIFICADOR
+// ════════════════════════════════════════════════════════════
+function usarUbicacion() {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(pos => {
+    const { latitude: lat, longitude: lng } = pos.coords;
+    document.getElementById('inputOrigen').value = `Mi ubicación (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+    layerUser.clearLayers();
+    L.circleMarker([lat, lng], { radius: 10, color: '#2e7d46', fillColor: '#4caf70', fillOpacity: 0.9, weight: 2 })
+      .addTo(layerUser).bindPopup('Tu ubicación');
+    map.setView([lat, lng], 15);
+  }, () => {
+    document.getElementById('inputOrigen').value = 'Centro Histórico';
+  });
+}
+
+async function buscarRuta() {
+  const origen  = document.getElementById('inputOrigen').value.trim();
+  const destino = document.getElementById('inputDestino').value.trim();
+  if (!origen || !destino) { alert('Ingresa origen y destino.'); return; }
+
+  if (!RUTAS.length) { alert('Las rutas aún están cargando, espera un momento.'); return; }
+
+  // Heurística de selección de ruta según palabras clave
+  const d = destino.toLowerCase();
+  let rutaSel = RUTAS.find(r =>
+    (d.includes('uat') || d.includes('universidad')) && r.clave === 'r06'
+  ) || RUTAS.find(r =>
+    (d.includes('central') || d.includes('autobus')) && r.clave === 'r12'
+  ) || RUTAS.find(r =>
+    (d.includes('soriana') || d.includes('plaza') || d.includes('flores')) && r.clave === 'r17'
+  ) || RUTAS.find(r =>
+    (d.includes('bicentenario') || d.includes('libertad')) && r.clave === 'r01'
+  ) || RUTAS[2] || RUTAS[0];
+
+  // Cargar detalle completo (con coordenadas) desde la API
+  const btn = document.getElementById('btnBuscar');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  try {
+    const detalle = await cargarDetalleRuta(rutaSel.id);
+    selectedRoute = detalle;
+    dibujarRuta(detalle);
+
+    const mins = Math.floor(Math.random() * 8) + 4;
+    document.getElementById('resRouteBadge').textContent  = detalle.numero;
+    document.getElementById('resRouteName').textContent   = detalle.nombre;
+    document.getElementById('resRouteDetail').textContent = detalle.descripcion;
+    document.getElementById('resWalkTime').textContent    = `~${mins} min caminando hasta la parada más cercana`;
+    document.getElementById('routeResult').style.display  = 'block';
+  } catch (e) {
+    alert('No se pudo cargar el trazado: ' + e.message);
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = 'Buscar ruta →';
+  }
+}
+
+function verRutaEnMapa() {
+  if (!selectedRoute) return;
+  const all = [...selectedRoute.coords_ida, ...selectedRoute.coords_vuelta];
+  map.fitBounds(L.latLngBounds(all), { padding: [30, 30] });
+}
+
+// ════════════════════════════════════════════════════════════
+//  LISTA DE RUTAS
+// ════════════════════════════════════════════════════════════
+function renderRouteList() {
+  const container = document.getElementById('routeList');
+  if (!RUTAS.length) {
+    container.innerHTML = '<div class="loading-placeholder">No se pudieron cargar las rutas.</div>';
+    return;
+  }
+  container.innerHTML = '';
+  RUTAS.forEach(r => {
+    const cached = localStorage.getItem('cache_ruta_detail_' + r.id)
+      ? '<span class="offline-cached-badge">✓ Caché</span>' : '';
+    const div = document.createElement('div');
+    div.className = 'route-item' + (selectedRoute && selectedRoute.id == r.id ? ' selected' : '');
+    div.innerHTML = `
+      <div class="route-num" style="background:${r.color_hex}">${r.numero}</div>
+      <div class="route-info">
+        <div class="route-info-name">${r.nombre} ${cached}</div>
+        <div class="route-info-desc">${r.descripcion}</div>
+      </div>`;
+    div.onclick = async () => {
+      try {
+        const detalle = await cargarDetalleRuta(r.id);
+        selectedRoute = detalle;
+        dibujarRuta(detalle);
+        renderRouteList();
+      } catch (e) {
+        alert(e.message);
+      }
+    };
+    container.appendChild(div);
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+//  REPORTES
+// ════════════════════════════════════════════════════════════
+async function cargarReportes() {
+  const container = document.getElementById('reportList');
+  container.innerHTML = '<div class="loading-placeholder">Cargando reportes…</div>';
+  try {
+    const reportes = await apiFetch('/reportes.php');
+    renderReportList(reportes);
+  } catch {
+    const cached = localStorage.getItem('cache_reportes');
+    if (cached) renderReportList(JSON.parse(cached));
+    else container.innerHTML = '<div class="loading-placeholder">Sin conexión – no hay reportes en caché.</div>';
+  }
+}
+
+function renderReportList(reportes) {
+  const container = document.getElementById('reportList');
+  if (!reportes.length) {
+    container.innerHTML = '<div class="loading-placeholder">No hay reportes recientes.</div>';
+    return;
+  }
+  localStorage.setItem('cache_reportes', JSON.stringify(reportes));
+  const tipoLabel = { cierre: 'Calle cerrada', desvio: 'Desvío', accidente: 'Accidente', manifestacion: 'Bloqueo', inundacion: 'Inundación', otro: 'Otro' };
+  container.innerHTML = '<div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray-mid);margin-bottom:8px">Reportes recientes</div>';
+  reportes.forEach(rep => {
+    const div = document.createElement('div');
+    div.className = 'report-item';
+    div.innerHTML = `
+      <div class="report-item-header">
+        <span class="report-type-badge ${rep.tipo}">${tipoLabel[rep.tipo] || rep.tipo}</span>
+        <span class="report-time">${rep.hace}</span>
+      </div>
+      <div class="report-desc">${rep.descripcion}</div>
+      ${rep.ruta_nombre ? `<div class="report-route">${rep.ruta_nombre}</div>` : ''}`;
+    container.appendChild(div);
+  });
+}
+
+async function enviarReporte() {
+  const tipo  = document.getElementById('repTipo').value;
+  const rutaId = document.getElementById('repRuta').value;
+  const desc  = document.getElementById('repDesc').value.trim();
+
+  if (!tipo || !desc) { alert('Selecciona el tipo de incidente y agrega una descripción.'); return; }
+
+  const btn = document.getElementById('btnReporte');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Enviando…';
+
+  const successEl = document.getElementById('successMsg');
+  const errorEl   = document.getElementById('errorMsg');
+  successEl.style.display = 'none';
+  errorEl.style.display   = 'none';
+
+  try {
+    await apiPost('/reportes.php', {
+      tipo,
+      ruta_id: rutaId ? parseInt(rutaId) : null,
+      descripcion: desc
+    });
+
+    successEl.style.display = 'block';
+    setTimeout(() => successEl.style.display = 'none', 4000);
+
+    document.getElementById('repTipo').value  = '';
+    document.getElementById('repRuta').value  = '';
+    document.getElementById('repDesc').value  = '';
+
+    // Recargar lista de reportes
+    await cargarReportes();
+  } catch (e) {
+    errorEl.textContent    = '✗ Error: ' + e.message;
+    errorEl.style.display  = 'block';
+    setTimeout(() => errorEl.style.display = 'none', 5000);
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = 'Enviar reporte';
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  OFFLINE
+// ════════════════════════════════════════════════════════════
+window.addEventListener('offline', () => {
+  document.getElementById('offlineBanner').style.display = 'block';
+});
+window.addEventListener('online', () => {
+  document.getElementById('offlineBanner').style.display = 'none';
+  init();
+});
+
+// ════════════════════════════════════════════════════════════
+//  SERVICE WORKER
+// ════════════════════════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(console.error);
+}
+
+// ── Arranque ──
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
